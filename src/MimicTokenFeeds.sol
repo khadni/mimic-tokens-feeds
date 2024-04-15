@@ -23,7 +23,6 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
     error MimicTokenFeeds__InsufficientUSDCInContract(uint256 requested, uint256 available);
     error MimicTokenFeeds__ZeroMimicTokenPrice();
     error MimicTokenFeeds__LinkTransferFailed();
-    error MimicTokenFeeds__UsdcTransferFailed();
 
     using PriceConverter for uint256;
     using SafeERC20 for IERC20;
@@ -276,7 +275,6 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @notice Withdraws all USDC tokens held by the contract and sends them to the contract owner.
      * @dev Transfers the total balance of USDC tokens to the owner's address.
      * @custom:error MimicTokenFeeds__NoUsdcBalanceToWithdraw Thrown if there are no USDC tokens in the contract to withdraw.
-     * @custom:error MimicTokenFeeds__UsdcTransferFailed Thrown if the transfer of USDC tokens to the owner fails.
      */
     function withdrawUsdc() public onlyOwner {
         uint256 usdcBalance = s_usdc.balanceOf(address(this));
@@ -285,10 +283,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
             revert MimicTokenFeeds__NoUsdcBalanceToWithdraw();
         }
 
-        bool transferSuccess = s_usdc.transfer(owner(), usdcBalance);
-        if (!transferSuccess) {
-            revert MimicTokenFeeds__UsdcTransferFailed();
-        }
+        s_usdc.safeTransfer(owner(), usdcBalance);
     }
 
     /// @dev Calculates the absolute difference between two unsigned integers.
