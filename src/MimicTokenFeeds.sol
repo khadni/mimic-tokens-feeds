@@ -72,7 +72,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * Emits a `CustomUpkeepRegistered` event upon successful registration.
      * @return upkeepID The ID assigned to the registered upkeep by the Chainlink Automation Registrar.
      */
-    function selfRegisterAndFundForConditionalUpkeep() public onlyOwner returns (uint256) {
+    function selfRegisterAndFundForConditionalUpkeep() external onlyOwner returns (uint256) {
         RegistrationParams memory params = RegistrationParams({
             name: "MimicTokenFeeds Upkeep",
             encryptedEmail: "0x", // Leave as 0x if not using email notifications
@@ -165,7 +165,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @custom:error MimicTokenFeeds__InsufficientUSDCAllowance Thrown if the caller has not allowed the contract to spend enough USDC on their behalf.
      * @custom:error MimicTokenFeeds__InsufficientTokensInContract Thrown if the contract does not hold enough MimicTokens to complete the purchase.
      */
-    function buyMimicTokenWithUSDC(uint256 usdcAmount) public nonReentrant {
+    function buyMimicTokenWithUSDC(uint256 usdcAmount) external nonReentrant {
         uint256 currentAllowance = s_usdc.allowance(msg.sender, address(this));
         if (currentAllowance < usdcAmount) {
             revert MimicTokenFeeds__InsufficientUsdcAllowance({
@@ -197,7 +197,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @param mimicTokenAmount The amount of MimicTokens the caller wishes to sell. This amount should consider the token's decimal precision (18).
      * @custom:error MimicTokenFeeds__InsufficientUSDCInContract Thrown if the contract's balance of USDC is insufficient to pay the caller for the MimicTokens being sold.
      */
-    function sellMimicToken(uint256 mimicTokenAmount) public nonReentrant {
+    function sellMimicToken(uint256 mimicTokenAmount) external nonReentrant {
         uint256 mimicTokenPrice = PriceConverter.getPrice(s_priceFeed);
         uint256 usdcAmount = calculateUSDCAmount(mimicTokenAmount, mimicTokenPrice);
 
@@ -248,7 +248,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @param amount The amount of LINK tokens the spender is approved to spend.
      * @return A boolean value indicating whether the approval was successful.
      */
-    function approveLinkTokenSpending(address spender, uint256 amount) public onlyOwner returns (bool) {
+    function approveLinkTokenSpending(address spender, uint256 amount) external onlyOwner returns (bool) {
         return i_link.approve(spender, amount);
     }
 
@@ -258,7 +258,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @custom:error MimicTokenFeeds__NoLinkBalanceToWithdraw Thrown if there are no LINK tokens in the contract to withdraw.
      * @custom:error MimicTokenFeeds__LinkTransferFailed Thrown if the transfer of LINK tokens to the owner fails.
      */
-    function withdrawLink() public onlyOwner {
+    function withdrawLink() external onlyOwner {
         uint256 linkBalance = i_link.balanceOf(address(this));
 
         if (linkBalance == 0) {
@@ -276,7 +276,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @dev Transfers the total balance of USDC tokens to the owner's address.
      * @custom:error MimicTokenFeeds__NoUsdcBalanceToWithdraw Thrown if there are no USDC tokens in the contract to withdraw.
      */
-    function withdrawUsdc() public onlyOwner {
+    function withdrawUsdc() external onlyOwner {
         uint256 usdcBalance = s_usdc.balanceOf(address(this));
 
         if (usdcBalance == 0) {
