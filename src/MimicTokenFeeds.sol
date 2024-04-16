@@ -197,7 +197,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @param mimicTokenAmount The amount of MimicTokens the caller wishes to sell. This amount should consider the token's decimal precision (18).
      * @custom:error MimicTokenFeeds__InsufficientUSDCInContract Thrown if the contract's balance of USDC is insufficient to pay the caller for the MimicTokens being sold.
      */
-    function sellMimicToken(uint256 mimicTokenAmount) external nonReentrant {
+    function sellMimicToken(uint256 mimicTokenAmount) external nonReentrant returns (uint256) {
         uint256 mimicTokenPrice = PriceConverter.getPrice(s_priceFeed);
         uint256 usdcAmount = calculateUSDCAmount(mimicTokenAmount, mimicTokenPrice);
 
@@ -209,6 +209,8 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
 
         _transfer(msg.sender, address(this), mimicTokenAmount);
         s_usdc.safeTransfer(msg.sender, usdcAmount);
+
+        return usdcAmount;
     }
 
     /**
