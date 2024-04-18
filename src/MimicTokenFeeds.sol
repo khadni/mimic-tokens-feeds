@@ -22,6 +22,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
     error MimicTokenFeeds__InsufficientTokensInContract(uint256 requested, uint256 available);
     error MimicTokenFeeds__InsufficientUSDCInContract(uint256 requested, uint256 available);
     error MimicTokenFeeds__ZeroMimicTokenPrice();
+    error MimicTokenFeeds__ZeroMimicTokenAmount();
     error MimicTokenFeeds__LinkTransferFailed();
 
     using PriceConverter for uint256;
@@ -195,12 +196,15 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      *      Utilizes SafeERC20 for the transfer of USDC to mitigate reentrancy risks.
      *      Reverts if the contract's USDC balance is insufficient to fulfill the request.
      * @param mimicTokenAmount The amount of MimicTokens the caller wishes to sell. This amount should consider the token's decimal precision (18).
+     * @custom:error MimicTokenFeeds__ZeroMimicTokenAmount Thrown if the token amount to sell is zero.
      * @custom:error MimicTokenFeeds__InsufficientUSDCInContract Thrown if the contract's balance of USDC is insufficient to pay the caller for the MimicTokens being sold.
      */
-    function sellMimicToken(uint256 mimicTokenAmount) external nonReentrant returns (uint256) {
+    function sellMimicTokenForUSDC(uint256 mimicTokenAmount) external nonReentrant returns (uint256) {
+        if (mimicTokenAmount <= 0) {
+            revert MimicTokenFeeds__ZeroMimicTokenAmount();
+        }
         uint256 mimicTokenPrice = PriceConverter.getPrice(s_priceFeed);
         uint256 usdcAmount = calculateUSDCAmount(mimicTokenAmount, mimicTokenPrice);
-
         uint256 usdcBalance = s_usdc.balanceOf(address(this));
 
         if (usdcBalance < usdcAmount) {
