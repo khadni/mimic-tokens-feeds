@@ -7,7 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import {PriceConverter} from "./PriceConverter.sol";
+import {TokenPricingUtils} from "./TokenPricingUtils.sol";
 import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/shared/interfaces/LinkTokenInterface.sol";
 import {AutomationRegistrarInterface, RegistrationParams} from "./interfaces/AutomationRegistrarInterface.sol";
 import {AutomationCompatibleInterface} from
@@ -25,10 +25,10 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
     error MimicTokenFeeds__ZeroMimicTokenAmount();
     error MimicTokenFeeds__LinkTransferFailed();
 
-    using PriceConverter for uint256;
+    using TokenPricingUtils for uint256;
     using SafeERC20 for IERC20;
 
-    IERC20 private immutable s_usdc;
+    IERC20 private immutable i_usdc;
     AggregatorV3Interface private s_priceFeed;
     LinkTokenInterface private immutable i_link;
     AutomationRegistrarInterface private immutable i_registrar;
@@ -56,12 +56,12 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
         address linkTokenAddress
     ) ERC20(name, symbol) Ownable() {
         _mint(address(this), initialSupply);
-        s_usdc = IERC20(usdcAddress);
+        i_usdc = IERC20(usdcAddress);
         s_priceFeed = AggregatorV3Interface(priceFeedAddress);
         i_link = LinkTokenInterface(linkTokenAddress);
         i_registrar = AutomationRegistrarInterface(registrarAddress);
         s_lastTokenPriceUpdateTime = block.timestamp;
-        s_lastTokenPriceInUsd = PriceConverter.getPrice(s_priceFeed);
+        s_lastTokenPriceInUsd = TokenPricingUtils.getPrice(s_priceFeed);
     }
 
     /**
@@ -124,7 +124,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
         view
         returns (bool upkeepNeeded, bytes memory performData)
     {
-        uint256 tempCurrentPrice = PriceConverter.getPrice(s_priceFeed);
+        uint256 tempCurrentPrice = TokenPricingUtils.getPrice(s_priceFeed);
         uint256 timeSinceLastUpdate = block.timestamp - s_lastTokenPriceUpdateTime;
         uint256 priceDeviation =
             (absDiff(s_lastTokenPriceInUsd, tempCurrentPrice) * PERCENTAGE_MULTIPLIER) / s_lastTokenPriceInUsd;
@@ -167,7 +167,7 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @custom:error MimicTokenFeeds__InsufficientTokensInContract Thrown if the contract does not hold enough MimicTokens to complete the purchase.
      */
     function buyMimicTokenWithUSDC(uint256 usdcAmount) external nonReentrant {
-        uint256 currentAllowance = s_usdc.allowance(msg.sender, address(this));
+        uint256 currentAllowance = i_usdc.allowance(msg.sender, address(this));
         if (currentAllowance < usdcAmount) {
             revert MimicTokenFeeds__InsufficientUsdcAllowance({
                 currentAllowance: currentAllowance,
@@ -175,14 +175,14 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
             });
         }
 
-        uint256 currentMimicTokenPrice = PriceConverter.getPrice(s_priceFeed); // 18 dec
+        uint256 currentMimicTokenPrice = TokenPricingUtils.getPrice(s_priceFeed); // 18 dec
         uint256 mimicTokenAmount = calculateMimicTokenAmount(usdcAmount, currentMimicTokenPrice);
 
         if (balanceOf(address(this)) < mimicTokenAmount) {
             revert MimicTokenFeeds__InsufficientTokensInContract(mimicTokenAmount, balanceOf(address(this)));
         }
 
-        s_usdc.safeTransferFrom(msg.sender, address(this), usdcAmount);
+        i_usdc.safeTransferFrom(msg.sender, address(this), usdcAmount);
         _transfer(address(this), msg.sender, mimicTokenAmount);
     }
 
@@ -203,16 +203,16 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
         if (mimicTokenAmount <= 0) {
             revert MimicTokenFeeds__ZeroMimicTokenAmount();
         }
-        uint256 mimicTokenPrice = PriceConverter.getPrice(s_priceFeed);
+        uint256 mimicTokenPrice = TokenPricingUtils.getPrice(s_priceFeed);
         uint256 usdcAmount = calculateUSDCAmount(mimicTokenAmount, mimicTokenPrice);
-        uint256 usdcBalance = s_usdc.balanceOf(address(this));
+        uint256 usdcBalance = i_usdc.balanceOf(address(this));
 
         if (usdcBalance < usdcAmount) {
             revert MimicTokenFeeds__InsufficientUSDCInContract(usdcAmount, usdcBalance);
         }
 
         _transfer(msg.sender, address(this), mimicTokenAmount);
-        s_usdc.safeTransfer(msg.sender, usdcAmount);
+        i_usdc.safeTransfer(msg.sender, usdcAmount);
 
         return usdcAmount;
     }
@@ -283,13 +283,13 @@ contract MimicTokenFeeds is ERC20, AutomationCompatibleInterface, ReentrancyGuar
      * @custom:error MimicTokenFeeds__NoUsdcBalanceToWithdraw Thrown if there are no USDC tokens in the contract to withdraw.
      */
     function withdrawUsdc() external onlyOwner {
-        uint256 usdcBalance = s_usdc.balanceOf(address(this));
+        uint256 usdcBalance = i_usdc.balanceOf(address(this));
 
         if (usdcBalance == 0) {
             revert MimicTokenFeeds__NoUsdcBalanceToWithdraw();
         }
 
-        s_usdc.safeTransfer(owner(), usdcBalance);
+        i_usdc.safeTransfer(owner(), usdcBalance);
     }
 
     /// @dev Calculates the absolute difference between two unsigned integers.
